@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FisioAgenda</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0e7490">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Fraunces:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --primary: #0e7490;
+  --primary-dark: #0c4a6e;
+  --primary-light: #e0f2fe;
+  --accent: #06b6d4;
+  --emerald: #10b981;
+  --amber: #f59e0b;
+  --rose: #f43f5e;
+  --bg: #f0f9ff;
+  --surface: #ffffff;
+  --surface2: #f8faff;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text2: #475569;
+  --text3: #94a3b8;
+  --sidebar-w: 240px;
+  --radius: 14px;
+  --shadow: 0 1px 3px rgba(14,116,144,.08), 0 4px 16px rgba(14,116,144,.06);
+  --shadow-lg: 0 8px 32px rgba(14,116,144,.14);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:inherit}
+a{text-decoration:none;color:inherit}
+
+/* LAYOUT */
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;background:var(--primary-dark);
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:width .25s ease;
+}
+.sidebar-logo{
+  padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,.1);
+}
+.sidebar-logo h1{
+  font-family:'Fraunces',serif;font-size:20px;color:#fff;line-height:1.2;
+}
+.sidebar-logo span{display:block;font-size:11px;color:rgba(255,255,255,.5);font-weight:400;letter-spacing:.05em;margin-top:2px}
+.nav{flex:1;padding:12px 0;overflow-y:auto}
+.nav-item{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 20px;color:rgba(255,255,255,.65);
+  cursor:pointer;transition:all .15s;font-size:14px;font-weight:500;
+  border-left:3px solid transparent;
+}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-item.active{background:rgba(255,255,255,.12);color:#fff;border-left-color:var(--accent)}
+.nav-item svg{width:18px;height:18px;flex-shrink:0;opacity:.8}
+.nav-item.active svg{opacity:1}
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.1)}
+.sidebar-footer p{font-size:11px;color:rgba(255,255,255,.35);text-align:center}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 28px;display:flex;align-items:center;justify-content:space-between;
+  height:60px;flex-shrink:0;
+}
+.topbar h2{font-family:'Fraunces',serif;font-size:20px;color:var(--primary-dark)}
+.topbar-actions{display:flex;gap:10px;align-items:center}
+.content{flex:1;overflow-y:auto;padding:24px 28px}
+
+/* BUTTONS */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;padding:9px 18px;
+  border-radius:8px;border:none;font-size:13.5px;font-weight:500;
+  transition:all .15s;white-space:nowrap;
+}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-accent:hover{background:#0891b2}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text2)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.btn-danger{background:var(--rose);color:#fff}
+.btn-danger:hover{background:#be123c}
+.btn-sm{padding:6px 12px;font-size:12.5px;border-radius:6px}
+.btn-icon{padding:8px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text2)}
+.btn-icon:hover{border-color:var(--primary);color:var(--primary)}
+.btn-success{background:var(--emerald);color:#fff}
+.btn-success:hover{background:#059669}
+
+/* CARDS */
+.card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border)}
+.card-header{padding:18px 20px 0;display:flex;align-items:center;justify-content:space-between}
+.card-title{font-family:'Fraunces',serif;font-size:16px;color:var(--primary-dark)}
+.card-body{padding:18px 20px}
+
+/* STAT CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{
+  background:var(--surface);border-radius:var(--radius);padding:18px 20px;
+  border:1px solid var(--border);box-shadow:var(--shadow);
+  display:flex;align-items:flex-start;gap:14px;
+}
+.stat-icon{
+  width:44px;height:44px;border-radius:10px;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;font-size:20px;
+}
+.stat-icon.teal{background:#e0f2fe;color:var(--primary)}
+.stat-icon.emerald{background:#d1fae5;color:#059669}
+.stat-icon.amber{background:#fef3c7;color:#d97706}
+.stat-icon.rose{background:#ffe4e6;color:#e11d48}
+.stat-info p{font-size:22px;font-weight:700;color:var(--text);line-height:1.2;margin-top:2px}
+.stat-info label{font-size:12px;color:var(--text3);font-weight:400}
+
+/* GRID LAYOUTS */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+
+/* FORMS */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:6px}
+.form-control{
+  width:100%;padding:10px 13px;border:1.5px solid var(--border);
+  border-radius:8px;background:var(--surface2);
+  transition:border-color .15s;outline:none;font-size:14px;
+}
+.form-control:focus{border-color:var(--primary);background:#fff}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.form-title{font-family:'Fraunces',serif;font-size:17px;color:var(--primary-dark);margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+
+/* MODAL */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  backdrop-filter:blur(2px);
+}
+.overlay.hidden{display:none}
+.modal{
+  background:var(--surface);border-radius:16px;width:100%;max-width:560px;
+  max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);
+}
+.modal-lg{max-width:780px}
+.modal-header{
+  padding:20px 24px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1;
+}
+.modal-header h3{font-family:'Fraunces',serif;font-size:18px;color:var(--primary-dark)}
+.modal-body{padding:20px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--surface2);padding:11px 14px;text-align:left;font-size:12.5px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border)}
+td{padding:11px 14px;font-size:14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:500;gap:5px}
+.badge-green{background:#d1fae5;color:#065f46}
+.badge-blue{background:#dbeafe;color:#1e40af}
+.badge-amber{background:#fef3c7;color:#92400e}
+.badge-red{background:#ffe4e6;color:#9f1239}
+.badge-gray{background:#f1f5f9;color:#475569}
+
+/* CALENDAR */
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.cal-nav{display:flex;align-items:center;gap:10px}
+.cal-title{font-family:'Fraunces',serif;font-size:18px;color:var(--primary-dark)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-day-name{text-align:center;font-size:12px;font-weight:600;color:var(--text3);padding:6px 0;text-transform:uppercase;letter-spacing:.05em}
+.cal-day{
+  aspect-ratio:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:flex-start;padding:6px 4px 4px;border-radius:8px;
+  cursor:pointer;transition:all .15s;border:1.5px solid transparent;min-height:64px;
+}
+.cal-day:hover{background:var(--primary-light);border-color:var(--accent)}
+.cal-day.today{background:var(--primary);color:#fff}
+.cal-day.today .cal-day-num{color:#fff}
+.cal-day.other-month .cal-day-num{color:var(--text3)}
+.cal-day.selected{border-color:var(--primary);background:var(--primary-light)}
+.cal-day-num{font-size:14px;font-weight:600;line-height:1}
+.cal-dots{display:flex;gap:3px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.cal-dot{width:6px;height:6px;border-radius:50%}
+.cal-dot.confirmed{background:var(--emerald)}
+.cal-dot.pending{background:var(--amber)}
+.cal-dot.cancelled{background:var(--rose)}
+
+/* DAY VIEW */
+.day-slots{display:flex;flex-direction:column;gap:2px;margin-top:12px}
+.time-slot{display:flex;gap:12px;min-height:52px}
+.time-label{width:48px;flex-shrink:0;font-size:12px;color:var(--text3);padding-top:6px;text-align:right}
+.slot-content{flex:1;position:relative}
+.slot-line{height:1px;background:var(--border);margin-top:16px}
+.appt-block{
+  background:var(--primary-light);border-left:3px solid var(--primary);
+  border-radius:6px;padding:6px 10px;margin-bottom:3px;cursor:pointer;
+  transition:all .15s;
+}
+.appt-block:hover{background:#bae6fd;box-shadow:var(--shadow)}
+.appt-block.confirmed{border-color:var(--emerald);background:#d1fae5}
+.appt-block.pending{border-color:var(--amber);background:#fef3c7}
+.appt-block.cancelled{border-color:var(--rose);background:#ffe4e6;opacity:.65}
+.appt-block strong{font-size:13px;display:block}
+.appt-block span{font-size:12px;color:var(--text2)}
+
+/* SEARCH */
+.search-bar{
+  display:flex;align-items:center;gap:10px;background:var(--surface2);
+  border:1.5px solid var(--border);border-radius:10px;padding:8px 14px;
+  transition:border-color .15s;flex:1;max-width:340px;
+}
+.search-bar:focus-within{border-color:var(--primary)}
+.search-bar svg{color:var(--text3);flex-shrink:0}
+.search-bar input{border:none;background:transparent;outline:none;flex:1;font-size:14px}
+
+/* PATIENT CARD */
+.patient-list{display:flex;flex-direction:column;gap:8px}
+.patient-row{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:14px 18px;display:flex;align-items:center;gap:14px;
+  cursor:pointer;transition:all .15s;
+}
+.patient-row:hover{border-color:var(--primary);box-shadow:var(--shadow)}
+.patient-avatar{
+  width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:16px;flex-shrink:0;
+}
+.patient-info{flex:1}
+.patient-info strong{display:block;font-size:15px}
+.patient-info span{font-size:13px;color:var(--text2)}
+.patient-meta{text-align:right;font-size:12.5px;color:var(--text3)}
+
+/* FICHA */
+.ficha-header{
+  background:linear-gradient(135deg,var(--primary-dark),var(--primary));
+  border-radius:var(--radius);padding:24px;color:#fff;margin-bottom:20px;
+  display:flex;align-items:center;gap:20px;
+}
+.ficha-avatar{
+  width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.2);
+  display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;border:2px solid rgba(255,255,255,.4);
+}
+.ficha-info h2{font-family:'Fraunces',serif;font-size:22px;margin-bottom:4px}
+.ficha-info p{opacity:.8;font-size:14px}
+.ficha-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px}
+.ficha-tab{
+  padding:10px 20px;font-size:14px;font-weight:500;color:var(--text2);
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;
+}
+.ficha-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.ficha-tab:hover{color:var(--primary)}
+
+/* SESSION RECORD */
+.session-card{
+  border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px;
+  transition:all .15s;
+}
+.session-card:hover{border-color:var(--primary);box-shadow:var(--shadow)}
+.session-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.session-num{background:var(--primary);color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+
+/* FREE SLOTS */
+.slot-result{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.free-slot{
+  background:var(--surface);border:1.5px solid var(--emerald);border-radius:8px;
+  padding:10px 16px;cursor:pointer;transition:all .15s;text-align:center;
+}
+.free-slot:hover{background:#d1fae5;transform:translateY(-1px);box-shadow:var(--shadow)}
+.free-slot strong{display:block;font-size:15px;color:var(--emerald)}
+.free-slot span{font-size:12px;color:var(--text2)}
+
+/* CHARTS */
+.chart-container{position:relative;height:220px}
+
+/* EMPTY STATE */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;color:var(--text3)}
+.empty svg{opacity:.4;margin-bottom:14px}
+.empty p{font-size:15px;margin-bottom:6px}
+.empty small{font-size:13px}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* TOAST */
+.toast-wrap{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{
+  background:var(--text);color:#fff;padding:12px 18px;border-radius:10px;
+  font-size:14px;box-shadow:var(--shadow-lg);animation:slideIn .25s ease;
+  display:flex;align-items:center;gap:10px;
+}
+.toast.success{background:#065f46}
+.toast.error{background:#9f1239}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .grid-2{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .sidebar{position:fixed;z-index:50;height:100%;transform:translateX(-100%);transition:transform .25s}
+  .sidebar.open{transform:translateX(0)}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .content{padding:16px}
+  .form-row,.form-row-3{grid-template-columns:1fr}
+}
+
+/* PRINT */
+@media print{
+  .sidebar,.topbar,.btn,.modal,.toast-wrap{display:none!important}
+  .content{padding:0}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <h1>🦴 FisioAgenda</h1>
+      <span>Gestão de Atendimentos</span>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="nav-item active" data-page="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" data-page="agenda">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Agenda
+      </div>
+      <div class="nav-item" data-page="pacientes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Pacientes
+      </div>
+      <div class="nav-item" data-page="horarios">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Horários Livres
+      </div>
+      <div class="nav-item" data-page="relatorios">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Relatórios
+      </div>
+      <div class="nav-item" data-page="exportar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar Excel
+      </div>
+    </nav>
+    <div class="sidebar-footer"><p>v1.0 &copy; 2025</p></div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn-icon" id="menuToggle" style="display:none">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <h2 id="pageTitle">Dashboard</h2>
+      </div>
+      <div class="topbar-actions" id="topbarActions"></div>
+    </header>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="overlay hidden" id="modalOverlay">
+  <div class="modal" id="modalBox">
+    <div class="modal-header">
+      <h3 id="modalTitle">Modal</h3>
+      <button class="btn-icon btn-sm" onclick="closeModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// DATA LAYER
+// ═══════════════════════════════════════════
+const DB = {
+  load(key) { try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] } },
+  save(key, data) { localStorage.setItem(key, JSON.stringify(data)) },
+  get patients() { return this.load('fa_patients') },
+  get appointments() { return this.load('fa_appointments') },
+  get records() { return this.load('fa_records') },
+  savePatients(d) { this.save('fa_patients', d) },
+  saveAppointments(d) { this.save('fa_appointments', d) },
+  saveRecords(d) { this.save('fa_records', d) },
+};
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6) }
+
+// Sample Data
+function seedData() {
+  if (DB.patients.length) return;
+  const patients = [
+    { id:'p1', name:'Ana Clara Souza', cpf:'123.456.789-00', phone:'(11) 98765-4321', email:'ana@email.com', birthdate:'1985-03-15', gender:'F', address:'Rua das Flores, 123 - SP', diagnosis:'Lombalgia crônica', notes:'Alergia a Ibuprofeno', createdAt:'2024-01-10' },
+    { id:'p2', name:'Carlos Eduardo Lima', cpf:'987.654.321-00', phone:'(11) 91234-5678', email:'carlos@email.com', birthdate:'1972-07-22', gender:'M', address:'Av. Paulista, 456 - SP', diagnosis:'Tendinite no ombro direito', notes:'', createdAt:'2024-02-05' },
+    { id:'p3', name:'Mariana Oliveira', cpf:'456.123.789-00', phone:'(11) 99876-5432', email:'mari@email.com', birthdate:'1990-11-30', gender:'F', address:'Rua Augusta, 789 - SP', diagnosis:'Cervicalgia', notes:'Grávida - 2º trimestre', createdAt:'2024-03-12' },
+    { id:'p4', name:'João Pedro Martins', cpf:'321.654.987-00', phone:'(11) 95555-1234', email:'joao@email.com', birthdate:'1968-05-08', gender:'M', address:'Rua Oscar Freire, 321 - SP', diagnosis:'Gonartrose bilateral', notes:'Hipertenso, toma Losartana', createdAt:'2024-04-01' },
+    { id:'p5', name:'Beatriz Santos', cpf:'654.321.987-00', phone:'(11) 94444-9876', email:'bia@email.com', birthdate:'1995-09-17', gender:'F', address:'Rua Consolação, 654 - SP', diagnosis:'Pós-op LCA', notes:'Cirurgia em Jan/2025', createdAt:'2025-01-20' },
+  ];
+  DB.savePatients(patients);
+
+  const today = new Date();
+  const fmt = d => d.toISOString().slice(0,10);
+  const d = (offset) => { let x = new Date(today); x.setDate(x.getDate()+offset); return fmt(x); };
+
+  const appointments = [
+    { id:'a1', patientId:'p1', date:d(-14), time:'09:00', duration:50, type:'Fisioterapia', status:'confirmado', notes:'2ª sessão', sessionNum:2 },
+    { id:'a2', patientId:'p2', date:d(-10), time:'10:00', duration:50, type:'Avaliação', status:'confirmado', notes:'Avaliação inicial', sessionNum:1 },
+    { id:'a3', patientId:'p3', date:d(-7), time:'14:00', duration:50, type:'Fisioterapia', status:'confirmado', notes:'', sessionNum:3 },
+    { id:'a4', patientId:'p1', date:d(-3), time:'09:00', duration:50, type:'Fisioterapia', status:'confirmado', notes:'', sessionNum:3 },
+    { id:'a5', patientId:'p4', date:d(-1), time:'11:00', duration:50, type:'Fisioterapia', status:'cancelado', notes:'Paciente remarcou', sessionNum:1 },
+    { id:'a6', patientId:'p5', date:d(0), time:'08:00', duration:50, type:'Fisioterapia', status:'confirmado', notes:'', sessionNum:4 },
+    { id:'a7', patientId:'p1', date:d(0), time:'09:00', duration:50, type:'Fisioterapia', status:'confirmado', notes:'', sessionNum:4 },
+    { id:'a8', patientId:'p2', date:d(0), time:'10:00', duration:50, type:'Fisioterapia', status:'pendente', notes:'', sessionNum:2 },
+    { id:'a9', patientId:'p3', date:d(1), time:'14:00', duration:50, type:'Fisioterapia', status:'confirmado', notes:'', sessionNum:4 },
+    { id:'a10', patientId:'p4', date:d(2), time:'11:00', duration:50, type:'Fisioterapia', status:'confirmado', notes:'', sessionNum:2 },
+    { id:'a11', patientId:'p5', date:d(3), time:'08:00', duration:50, type:'Fisioterapia', status:'confirmado', notes:'', sessionNum:5 },
+    { id:'a12', patientId:'p1', date:d(4), time:'09:00', duration:50, type:'Retorno', status:'pendente', notes:'', sessionNum:5 },
+  ];
+  DB.saveAppointments(appointments);
+
+  const records = [
+    { id:'r1', patientId:'p1', appointmentId:'a1', date:d(-14), sessionNum:2, complaints:'Dor lombar intensa', evolution:'Melhora parcial', techniques:'TENS, Massagem, Crochetagem', exercises:'Ponte, Bird-dog', professional:'Dr. Silva', nextSession:'Continuar protocolo' },
+    { id:'r2', patientId:'p1', appointmentId:'a4', date:d(-3), sessionNum:3, complaints:'Dor reduzida', evolution:'Boa melhora funcional', techniques:'Ultrassom, Mobilização articular', exercises:'Agachamento, Prancha', professional:'Dr. Silva', nextSession:'Iniciar fortalecimento' },
+    { id:'r3', patientId:'p2', appointmentId:'a2', date:d(-10), sessionNum:1, complaints:'Dor no ombro ao elevar braço', evolution:'Avaliação - ADM restrita', techniques:'Avaliação funcional completa', exercises:'Pendular Codman', professional:'Dr. Silva', nextSession:'Iniciar terapia manual' },
+    { id:'r4', patientId:'p3', appointmentId:'a3', date:d(-7), sessionNum:3, complaints:'Dor cervical e cefaleia', evolution:'Discreta melhora', techniques:'RPG, Liberação miofascial', exercises:'Estabilização cervical', professional:'Dr. Silva', nextSession:'Continuar RPG' },
+  ];
+  DB.saveRecords(records);
+}
+seedData();
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const FULL_DAYS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const TYPES = ['Fisioterapia','Avaliação','Retorno','Pilates','Pós-operatório','Acupuntura'];
+const TIMES = ['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
+
+function fmtDate(s) {
+  if (!s) return '-';
+  const [y,m,d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+function fmtAge(birthdate) {
+  if (!birthdate) return '';
+  const b = new Date(birthdate); const n = new Date();
+  let a = n.getFullYear() - b.getFullYear();
+  if (n < new Date(n.getFullYear(), b.getMonth(), b.getDate())) a--;
+  return `${a} anos`;
+}
+function todayStr() { return new Date().toISOString().slice(0,10) }
+function patientName(id) { return DB.patients.find(p=>p.id===id)?.name || 'Desconhecido' }
+function patientInitials(name) { return name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase() }
+function statusBadge(s) {
+  const map = { confirmado:'badge-green', pendente:'badge-amber', cancelado:'badge-red' };
+  const label = { confirmado:'Confirmado', pendente:'Pendente', cancelado:'Cancelado' };
+  return `<span class="badge ${map[s]||'badge-gray'}">${label[s]||s}</span>`;
+}
+
+// ═══════════════════════════════════════════
+// TOAST & MODAL
+// ═══════════════════════════════════════════
+function toast(msg, type='success') {
+  const w = document.getElementById('toastWrap');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = (type==='success'?'✓':type==='error'?'✗':'ℹ') + ' ' + msg;
+  w.appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
+
+let modalCallback = null;
+function openModal(title, body, footer, large=false) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFooter').innerHTML = footer;
+  document.getElementById('modalBox').className = 'modal' + (large?' modal-lg':'');
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.add('hidden') }
+document.getElementById('modalOverlay').addEventListener('click', e => { if(e.target.id==='modalOverlay') closeModal() });
+
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+let currentPage = 'dashboard';
+const pageTitles = {
+  dashboard:'Dashboard', agenda:'Agenda', pacientes:'Pacientes',
+  horarios:'Horários Livres', relatorios:'Relatórios', exportar:'Exportar Excel', ficha:'Ficha do Paciente'
+};
+
+function navigate(page, data=null) {
+  currentPage = page;
+  document.getElementById('pageTitle').textContent = pageTitles[page] || page;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page===page));
+  const pages = { dashboard:renderDashboard, agenda:renderAgenda, pacientes:renderPacientes, horarios:renderHorarios, relatorios:renderRelatorios, exportar:renderExportar };
+  if (page === 'ficha' && data) renderFicha(data);
+  else if (pages[page]) pages[page]();
+}
+
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => navigate(el.dataset.page));
+});
+
+// Mobile menu
+const menuBtn = document.getElementById('menuToggle');
+menuBtn.addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+if (window.innerWidth < 600) menuBtn.style.display = 'flex';
+window.addEventListener('resize', () => { menuBtn.style.display = window.innerWidth < 600 ? 'flex' : 'none' });
+
+// ═══════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════
+function renderDashboard() {
+  const acts = document.getElementById('topbarActions');
+  acts.innerHTML = `<span style="font-size:13px;color:var(--text2)">${FULL_DAYS[new Date().getDay()]}, ${fmtDate(todayStr())}</span>`;
+
+  const appts = DB.appointments;
+  const today = todayStr();
+  const todayAppts = appts.filter(a => a.date === today);
+  const thisMonth = appts.filter(a => a.date.slice(0,7) === today.slice(0,7));
+  const confirmed = appts.filter(a => a.status === 'confirmado').length;
+  const cancelled = appts.filter(a => a.status === 'cancelado').length;
+
+  const upcoming = appts.filter(a => a.date >= today && a.status !== 'cancelado').sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)).slice(0,5);
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-icon teal">📅</div><div class="stat-info"><label>Hoje</label><p>${todayAppts.length}</p></div></div>
+      <div class="stat-card"><div class="stat-icon emerald">✓</div><div class="stat-info"><label>Confirmados (mês)</label><p>${thisMonth.filter(a=>a.status==='confirmado').length}</p></div></div>
+      <div class="stat-card"><div class="stat-icon amber">👥</div><div class="stat-info"><label>Total Pacientes</label><p>${DB.patients.length}</p></div></div>
+      <div class="stat-card"><div class="stat-icon rose">✗</div><div class="stat-info"><label>Cancelamentos (mês)</label><p>${thisMonth.filter(a=>a.status==='cancelado').length}</p></div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Atendimentos de Hoje</span>
+          <button class="btn btn-primary btn-sm" onclick="openNewApptModal('${today}')">+ Agendar</button>
+        </div>
+        <div class="card-body">
+          ${todayAppts.length === 0 ? '<div class="empty" style="padding:24px"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg><p>Nenhum atendimento hoje</p></div>' :
+          todayAppts.sort((a,b)=>a.time.localeCompare(b.time)).map(a => `
+            <div class="appt-block ${a.status}" style="margin-bottom:8px" onclick="viewAppt('${a.id}')">
+              <strong>${a.time} — ${patientName(a.patientId)}</strong>
+              <span>${a.type} &bull; ${statusBadge(a.status)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">Próximos Agendamentos</span></div>
+        <div class="card-body">
+          ${upcoming.length === 0 ? '<div class="empty" style="padding:24px"><p>Sem agendamentos futuros</p></div>' :
+          upcoming.map(a => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+              <div style="text-align:center;min-width:40px">
+                <div style="font-size:18px;font-weight:700;color:var(--primary);line-height:1">${a.date.slice(8)}</div>
+                <div style="font-size:11px;color:var(--text3)">${MONTHS[parseInt(a.date.slice(5,7))-1].slice(0,3)}</div>
+              </div>
+              <div style="flex:1">
+                <strong style="font-size:14px">${patientName(a.patientId)}</strong>
+                <div style="font-size:12px;color:var(--text2)">${a.time} &bull; ${a.type}</div>
+              </div>
+              ${statusBadge(a.status)}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════
+// AGENDA
+// ═══════════════════════════════════════════
+let calDate = new Date();
+let selectedDate = todayStr();
+
+function renderAgenda() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary" onclick="openNewApptModal('${selectedDate}')">+ Novo Agendamento</button>`;
+  renderCalendarContent();
+}
+
+function renderCalendarContent() {
+  const appts = DB.appointments;
+  const y = calDate.getFullYear(), m = calDate.getMonth();
+  const first = new Date(y, m, 1);
+  const last = new Date(y, m+1, 0);
+  const startDow = first.getDay();
+  const today = todayStr();
+
+  // Build calendar days
+  let days = '';
+  DAYS.forEach(d => { days += `<div class="cal-day-name">${d}</div>` });
+
+  // Prev month filler
+  for (let i = 0; i < startDow; i++) {
+    const d = new Date(y, m, -startDow+i+1);
+    days += `<div class="cal-day other-month"><span class="cal-day-num">${d.getDate()}</span></div>`;
+  }
+  // Current month
+  for (let d = 1; d <= last.getDate(); d++) {
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayAppts = appts.filter(a => a.date === dateStr);
+    const isToday = dateStr === today;
+    const isSel = dateStr === selectedDate;
+    const dots = dayAppts.map(a => `<span class="cal-dot ${a.status}"></span>`).join('');
+    days += `<div class="cal-day ${isToday?'today':''} ${isSel&&!isToday?'selected':''}" onclick="selectDate('${dateStr}')">
+      <span class="cal-day-num">${d}</span>
+      <div class="cal-dots">${dots}</div>
+    </div>`;
+  }
+
+  // Day appointments list
+  const dayAppts = appts.filter(a => a.date === selectedDate).sort((a,b)=>a.time.localeCompare(b.time));
+  const dayLabel = `${parseInt(selectedDate.slice(8))} de ${MONTHS[parseInt(selectedDate.slice(5,7))-1]}`;
+
+  document.getElementById('content').innerHTML = `
+    <div class="grid-2" style="align-items:start">
+      <div class="card">
+        <div class="card-body">
+          <div class="cal-header">
+            <button class="btn-icon btn-sm" onclick="prevMonth()">&#8249;</button>
+            <span class="cal-title">${MONTHS[m]} ${y}</span>
+            <button class="btn-icon btn-sm" onclick="nextMonth()">&#8250;</button>
+          </div>
+          <div class="cal-grid">${days}</div>
+          <div style="margin-top:14px;display:flex;gap:14px;font-size:12px;color:var(--text2)">
+            <span><span class="cal-dot confirmed" style="display:inline-block"></span> Confirmado</span>
+            <span><span class="cal-dot pending" style="display:inline-block"></span> Pendente</span>
+            <span><span class="cal-dot cancelled" style="display:inline-block"></span> Cancelado</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">${dayLabel}</span>
+          <button class="btn btn-primary btn-sm" onclick="openNewApptModal('${selectedDate}')">+ Agendar</button>
+        </div>
+        <div class="card-body">
+          ${dayAppts.length === 0 ? `
+            <div class="empty"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>Nenhum atendimento neste dia</p><small>Clique em "+ Agendar" para adicionar</small></div>` :
+          dayAppts.map(a => `
+            <div class="appt-block ${a.status}" onclick="viewAppt('${a.id}')">
+              <div style="display:flex;justify-content:space-between;align-items:start">
+                <strong>${a.time} — ${patientName(a.patientId)}</strong>
+                ${statusBadge(a.status)}
+              </div>
+              <span>${a.type} &bull; ${a.duration}min &bull; Sessão ${a.sessionNum||'?'}</span>
+              ${a.notes?`<div style="font-size:12px;margin-top:4px;color:var(--text2)">${a.notes}</div>`:''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function selectDate(d) { selectedDate = d; renderCalendarContent(); }
+function prevMonth() { calDate = new Date(calDate.getFullYear(), calDate.getMonth()-1, 1); renderCalendarContent(); }
+function nextMonth() { calDate = new Date(calDate.getFullYear(), calDate.getMonth()+1, 1); renderCalendarContent(); }
+
+// ═══════════════════════════════════════════
+// APPOINTMENT MODALS
+// ═══════════════════════════════════════════
+function openNewApptModal(date='') {
+  const pOpts = DB.patients.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const tOpts = TIMES.map(t=>`<option value="${t}">${t}</option>`).join('');
+  const typeOpts = TYPES.map(t=>`<option>${t}</option>`).join('');
+  openModal('Novo Agendamento', `
+    <div class="form-row">
+      <div class="form-group"><label>Paciente *</label><select class="form-control" id="f_patient"><option value="">Selecione...</option>${pOpts}</select></div>
+      <div class="form-group"><label>Data *</label><input type="date" class="form-control" id="f_date" value="${date||todayStr()}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Horário *</label><select class="form-control" id="f_time">${tOpts}</select></div>
+      <div class="form-group"><label>Duração (min)</label><select class="form-control" id="f_dur"><option>30</option><option selected>50</option><option>60</option><option>90</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Tipo</label><select class="form-control" id="f_type">${typeOpts}</select></div>
+      <div class="form-group"><label>Nº da Sessão</label><input type="number" class="form-control" id="f_sess" min="1" value="1"></div>
+    </div>
+    <div class="form-group"><label>Status</label>
+      <select class="form-control" id="f_status">
+        <option value="confirmado">Confirmado</option><option value="pendente">Pendente</option><option value="cancelado">Cancelado</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Observações</label><textarea class="form-control" id="f_notes" rows="2"></textarea></div>
+  `, `<button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveAppt()">Salvar</button>`);
+}
+
+function saveAppt(id=null) {
+  const patientId = document.getElementById('f_patient').value;
+  const date = document.getElementById('f_date').value;
+  const time = document.getElementById('f_time').value;
+  if (!patientId || !date || !time) { toast('Preencha os campos obrigatórios', 'error'); return; }
+  const appts = DB.appointments;
+  if (id) {
+    const i = appts.findIndex(a=>a.id===id);
+    if (i>-1) appts[i] = { ...appts[i], patientId, date, time, duration:+document.getElementById('f_dur').value, type:document.getElementById('f_type').value, status:document.getElementById('f_status').value, notes:document.getElementById('f_notes').value, sessionNum:+document.getElementById('f_sess').value };
+  } else {
+    appts.push({ id:uid(), patientId, date, time, duration:+document.getElementById('f_dur').value, type:document.getElementById('f_type').value, status:document.getElementById('f_status').value, notes:document.getElementById('f_notes').value, sessionNum:+document.getElementById('f_sess').value });
+  }
+  DB.saveAppointments(appts);
+  closeModal();
+  toast(id?'Agendamento atualizado!':'Agendamento criado!');
+  if (currentPage==='agenda') renderCalendarContent();
+  else if (currentPage==='dashboard') renderDashboard();
+}
+
+function viewAppt(id) {
+  const a = DB.appointments.find(x=>x.id===id);
+  if (!a) return;
+  const p = DB.patients.find(x=>x.id===a.patientId);
+  openModal('Detalhes do Agendamento', `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="background:var(--bg);border-radius:10px;padding:16px">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:2px">Paciente</div>
+        <div style="font-size:16px;font-weight:600">${p?.name||'?'}</div>
+      </div>
+      <div class="form-row">
+        <div style="background:var(--bg);border-radius:10px;padding:14px"><div style="font-size:12px;color:var(--text2)">Data</div><div style="font-weight:600">${fmtDate(a.date)}</div></div>
+        <div style="background:var(--bg);border-radius:10px;padding:14px"><div style="font-size:12px;color:var(--text2)">Horário</div><div style="font-weight:600">${a.time}</div></div>
+      </div>
+      <div class="form-row">
+        <div style="background:var(--bg);border-radius:10px;padding:14px"><div style="font-size:12px;color:var(--text2)">Tipo</div><div style="font-weight:600">${a.type}</div></div>
+        <div style="background:var(--bg);border-radius:10px;padding:14px"><div style="font-size:12px;color:var(--text2)">Status</div>${statusBadge(a.status)}</div>
+      </div>
+      <div class="form-row">
+        <div style="background:var(--bg);border-radius:10px;padding:14px"><div style="font-size:12px;color:var(--text2)">Duração</div><div style="font-weight:600">${a.duration} min</div></div>
+        <div style="background:var(--bg);border-radius:10px;padding:14px"><div style="font-size:12px;color:var(--text2)">Sessão Nº</div><div style="font-weight:600">${a.sessionNum||'-'}</div></div>
+      </div>
+      ${a.notes?`<div style="background:var(--bg);border-radius:10px;padding:14px"><div style="font-size:12px;color:var(--text2)">Obs.</div><div style="font-weight:500">${a.notes}</div></div>`:''}
+    </div>
+  `, `
+    <button class="btn btn-danger btn-sm" onclick="deleteAppt('${id}')">Excluir</button>
+    <button class="btn btn-outline" onclick="editAppt('${id}')">Editar</button>
+    ${p?`<button class="btn btn-primary" onclick="closeModal();navigate('ficha','${p.id}')">Ver Ficha</button>`:''}
+  `);
+}
+
+function editAppt(id) {
+  const a = DB.appointments.find(x=>x.id===id);
+  if (!a) return;
+  closeModal();
+  const pOpts = DB.patients.map(p=>`<option value="${p.id}" ${p.id===a.patientId?'selected':''}>${p.name}</option>`).join('');
+  const tOpts = TIMES.map(t=>`<option ${t===a.time?'selected':''}>${t}</option>`).join('');
+  const typeOpts = TYPES.map(t=>`<option ${t===a.type?'selected':''}>${t}</option>`).join('');
+  openModal('Editar Agendamento', `
+    <div class="form-row">
+      <div class="form-group"><label>Paciente *</label><select class="form-control" id="f_patient">${pOpts}</select></div>
+      <div class="form-group"><label>Data *</label><input type="date" class="form-control" id="f_date" value="${a.date}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Horário *</label><select class="form-control" id="f_time">${tOpts}</select></div>
+      <div class="form-group"><label>Duração (min)</label><select class="form-control" id="f_dur"><option ${a.duration==30?'selected':''}>30</option><option ${a.duration==50?'selected':''}>50</option><option ${a.duration==60?'selected':''}>60</option><option ${a.duration==90?'selected':''}>90</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Tipo</label><select class="form-control" id="f_type">${typeOpts}</select></div>
+      <div class="form-group"><label>Nº da Sessão</label><input type="number" class="form-control" id="f_sess" value="${a.sessionNum||1}"></div>
+    </div>
+    <div class="form-group"><label>Status</label>
+      <select class="form-control" id="f_status">
+        <option value="confirmado" ${a.status==='confirmado'?'selected':''}>Confirmado</option>
+        <option value="pendente" ${a.status==='pendente'?'selected':''}>Pendente</option>
+        <option value="cancelado" ${a.status==='cancelado'?'selected':''}>Cancelado</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Observações</label><textarea class="form-control" id="f_notes" rows="2">${a.notes||''}</textarea></div>
+  `, `<button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveAppt('${id}')">Salvar</button>`);
+}
+
+function deleteAppt(id) {
+  if (!confirm('Excluir este agendamento?')) return;
+  DB.saveAppointments(DB.appointments.filter(a=>a.id!==id));
+  closeModal();
+  toast('Agendamento excluído');
+  if (currentPage==='agenda') renderCalendarContent();
+  else renderDashboard();
+}
+
+// ═══════════════════════════════════════════
+// PACIENTES
+// ═══════════════════════════════════════════
+let patientSearch = '';
+
+function renderPacientes() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary" onclick="openPatientModal()">+ Novo Paciente</button>`;
+  drawPacientes();
+}
+
+function drawPacientes() {
+  const q = patientSearch.toLowerCase();
+  const list = DB.patients.filter(p => !q || p.name.toLowerCase().includes(q) || p.cpf.includes(q) || p.phone.includes(q));
+  document.getElementById('content').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div class="search-bar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input placeholder="Buscar por nome, CPF ou telefone..." value="${patientSearch}" oninput="patientSearch=this.value;drawPacientes()">
+      </div>
+      <span style="font-size:13px;color:var(--text2)">${list.length} paciente(s)</span>
+    </div>
+    <div class="patient-list">
+      ${list.length===0 ? '<div class="empty"><p>Nenhum paciente encontrado</p></div>' :
+      list.map(p => {
+        const pAppts = DB.appointments.filter(a=>a.patientId===p.id);
+        const last = pAppts.filter(a=>a.date<=todayStr()).sort((a,b)=>b.date.localeCompare(a.date))[0];
+        return `<div class="patient-row" onclick="navigate('ficha','${p.id}')">
+          <div class="patient-avatar">${patientInitials(p.name)}</div>
+          <div class="patient-info">
+            <strong>${p.name}</strong>
+            <span>${p.cpf} &bull; ${p.phone} &bull; ${fmtAge(p.birthdate)}</span>
+            <div style="font-size:12px;color:var(--primary);margin-top:3px">${p.diagnosis||''}</div>
+          </div>
+          <div class="patient-meta">
+            <div>${pAppts.length} sessões</div>
+            <div>Último: ${last?fmtDate(last.date):'-'}</div>
+            <div style="margin-top:4px"><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openPatientModal('${p.id}')">Editar</button></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function openPatientModal(id=null) {
+  const p = id ? DB.patients.find(x=>x.id===id) : null;
+  const v = k => p?.[k]||'';
+  openModal(id?'Editar Paciente':'Novo Paciente', `
+    <div class="form-title">Dados Pessoais</div>
+    <div class="form-row">
+      <div class="form-group"><label>Nome Completo *</label><input class="form-control" id="fp_name" value="${v('name')}" placeholder="Nome do paciente"></div>
+      <div class="form-group"><label>CPF</label><input class="form-control" id="fp_cpf" value="${v('cpf')}" placeholder="000.000.000-00"></div>
+    </div>
+    <div class="form-row-3">
+      <div class="form-group"><label>Telefone</label><input class="form-control" id="fp_phone" value="${v('phone')}" placeholder="(11) 99999-0000"></div>
+      <div class="form-group"><label>E-mail</label><input class="form-control" id="fp_email" value="${v('email')}"></div>
+      <div class="form-group"><label>Nascimento</label><input type="date" class="form-control" id="fp_birth" value="${v('birthdate')}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Gênero</label>
+        <select class="form-control" id="fp_gender">
+          <option value="" ${!v('gender')?'selected':''}>Selecione</option>
+          <option value="M" ${v('gender')==='M'?'selected':''}>Masculino</option>
+          <option value="F" ${v('gender')==='F'?'selected':''}>Feminino</option>
+          <option value="O" ${v('gender')==='O'?'selected':''}>Outro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Endereço</label><input class="form-control" id="fp_addr" value="${v('address')}"></div>
+    </div>
+    <div class="form-title" style="margin-top:4px">Informações Clínicas</div>
+    <div class="form-group"><label>Diagnóstico Principal</label><input class="form-control" id="fp_diag" value="${v('diagnosis')}"></div>
+    <div class="form-group"><label>Observações / Alergias / Comorbidades</label><textarea class="form-control" id="fp_notes" rows="3">${v('notes')}</textarea></div>
+  `, `
+    ${id?`<button class="btn btn-danger btn-sm" onclick="deletePatient('${id}')">Excluir</button>`:''}
+    <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="savePatient('${id||''}')">Salvar Paciente</button>
+  `, true);
+}
+
+function savePatient(id) {
+  const name = document.getElementById('fp_name').value.trim();
+  if (!name) { toast('Nome é obrigatório', 'error'); return; }
+  const patients = DB.patients;
+  const data = {
+    name, cpf:document.getElementById('fp_cpf').value,
+    phone:document.getElementById('fp_phone').value,
+    email:document.getElementById('fp_email').value,
+    birthdate:document.getElementById('fp_birth').value,
+    gender:document.getElementById('fp_gender').value,
+    address:document.getElementById('fp_addr').value,
+    diagnosis:document.getElementById('fp_diag').value,
+    notes:document.getElementById('fp_notes').value,
+  };
+  if (id) {
+    const i = patients.findIndex(p=>p.id===id);
+    if (i>-1) patients[i] = { ...patients[i], ...data };
+  } else {
+    patients.push({ id:uid(), ...data, createdAt:todayStr() });
+  }
+  DB.savePatients(patients);
+  closeModal();
+  toast(id?'Paciente atualizado!':'Paciente cadastrado!');
+  drawPacientes();
+}
+
+function deletePatient(id) {
+  if (!confirm('Excluir este paciente e todos os seus dados?')) return;
+  DB.savePatients(DB.patients.filter(p=>p.id!==id));
+  DB.saveAppointments(DB.appointments.filter(a=>a.patientId!==id));
+  DB.saveRecords(DB.records.filter(r=>r.patientId!==id));
+  closeModal();
+  toast('Paciente excluído');
+  drawPacientes();
+}
+
+// ═══════════════════════════════════════════
+// FICHA DO PACIENTE
+// ═══════════════════════════════════════════
+let fichaTab = 'dados';
+let currentPatientId = null;
+
+function renderFicha(patientId) {
+  currentPatientId = patientId;
+  const p = DB.patients.find(x=>x.id===patientId);
+  if (!p) { navigate('pacientes'); return; }
+  document.getElementById('topbarActions').innerHTML = `
+    <button class="btn btn-outline" onclick="navigate('pacientes')">← Voltar</button>
+    <button class="btn btn-primary" onclick="openNewApptModal('');document.getElementById('f_patient').value='${p.id}'">+ Agendar</button>
+  `;
+  document.getElementById('pageTitle').textContent = p.name;
+  drawFicha(p);
+}
+
+function drawFicha(p) {
+  const appts = DB.appointments.filter(a=>a.patientId===p.id).sort((a,b)=>b.date.localeCompare(a.date));
+  const recs = DB.records.filter(r=>r.patientId===p.id).sort((a,b)=>b.date.localeCompare(a.date));
+
+  let tabContent = '';
+  if (fichaTab === 'dados') {
+    tabContent = `
+      <div class="grid-2">
+        <div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Dados Pessoais</div>
+          ${[['CPF',p.cpf],['Telefone',p.phone],['E-mail',p.email],['Nascimento',fmtDate(p.birthdate)+' ('+fmtAge(p.birthdate)+')'],['Gênero',p.gender==='M'?'Masculino':p.gender==='F'?'Feminino':'Outro'],['Endereço',p.address]].map(([l,v])=>`
+            <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+              <div style="font-size:12px;color:var(--text3)">${l}</div>
+              <div style="font-size:14px;font-weight:500;margin-top:2px">${v||'-'}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Informações Clínicas</div>
+          <div style="background:var(--primary-light);border-radius:10px;padding:14px;margin-bottom:14px">
+            <div style="font-size:12px;color:var(--primary)">Diagnóstico</div>
+            <div style="font-size:15px;font-weight:600;margin-top:4px">${p.diagnosis||'Não informado'}</div>
+          </div>
+          ${p.notes?`<div style="background:#fef3c7;border-radius:10px;padding:14px;border-left:3px solid var(--amber)"><div style="font-size:12px;color:#92400e">⚠ Observações</div><div style="font-size:14px;margin-top:4px">${p.notes}</div></div>`:''}
+          <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center">
+              <div style="font-size:22px;font-weight:700;color:var(--primary)">${appts.length}</div>
+              <div style="font-size:12px;color:var(--text2)">Total de Sessões</div>
+            </div>
+            <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center">
+              <div style="font-size:22px;font-weight:700;color:var(--emerald)">${appts.filter(a=>a.status==='confirmado').length}</div>
+              <div style="font-size:12px;color:var(--text2)">Confirmadas</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (fichaTab === 'agenda') {
+    tabContent = appts.length === 0 ? '<div class="empty"><p>Nenhum agendamento encontrado</p></div>' : `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Hora</th><th>Tipo</th><th>Sessão</th><th>Status</th><th>Obs.</th><th></th></tr></thead>
+          <tbody>
+            ${appts.map(a=>`<tr>
+              <td>${fmtDate(a.date)}</td><td>${a.time}</td><td>${a.type}</td>
+              <td>${a.sessionNum||'-'}</td><td>${statusBadge(a.status)}</td>
+              <td style="max-width:160px;font-size:13px">${a.notes||'-'}</td>
+              <td><button class="btn btn-outline btn-sm" onclick="viewAppt('${a.id}')">Ver</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (fichaTab === 'evolucao') {
+    tabContent = `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+        <button class="btn btn-primary" onclick="openRecordModal('${p.id}')">+ Nova Evolução</button>
+      </div>
+      ${recs.length===0?'<div class="empty"><p>Nenhuma evolução registrada</p></div>':
+      recs.map(r=>`
+        <div class="session-card">
+          <div class="session-card-header">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="session-num">Sessão ${r.sessionNum}</span>
+              <span style="font-size:13px;color:var(--text2)">${fmtDate(r.date)}</span>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="deleteRecord('${r.id}')">Excluir</button>
+          </div>
+          <div class="grid-2" style="gap:12px">
+            <div><div style="font-size:12px;color:var(--text3);margin-bottom:3px">Queixas</div><div style="font-size:14px">${r.complaints||'-'}</div></div>
+            <div><div style="font-size:12px;color:var(--text3);margin-bottom:3px">Evolução</div><div style="font-size:14px">${r.evolution||'-'}</div></div>
+            <div><div style="font-size:12px;color:var(--text3);margin-bottom:3px">Técnicas Utilizadas</div><div style="font-size:14px">${r.techniques||'-'}</div></div>
+            <div><div style="font-size:12px;color:var(--text3);margin-bottom:3px">Exercícios</div><div style="font-size:14px">${r.exercises||'-'}</div></div>
+          </div>
+          ${r.nextSession?`<div style="background:var(--primary-light);border-radius:8px;padding:10px;margin-top:10px;font-size:13px"><strong>Próxima sessão:</strong> ${r.nextSession}</div>`:''}
+          <div style="font-size:12px;color:var(--text3);margin-top:8px">Profissional: ${r.professional||'-'}</div>
+        </div>
+      `).join('')}
+    `;
+  }
+
+  document.getElementById('content').innerHTML = `
+    <div class="ficha-header">
+      <div class="ficha-avatar">${patientInitials(p.name)}</div>
+      <div class="ficha-info">
+        <h2>${p.name}</h2>
+        <p>${p.diagnosis||'Diagnóstico não informado'} &bull; ${fmtAge(p.birthdate)} &bull; Cadastro: ${fmtDate(p.createdAt)}</p>
+      </div>
+      <div style="margin-left:auto">
+        <button class="btn btn-outline" style="color:#fff;border-color:rgba(255,255,255,.4)" onclick="openPatientModal('${p.id}')">Editar Dados</button>
+      </div>
+    </div>
+    <div class="ficha-tabs">
+      <div class="ficha-tab ${fichaTab==='dados'?'active':''}" onclick="fichaTab='dados';drawFicha(DB.patients.find(x=>x.id==='${p.id}'))">Dados Cadastrais</div>
+      <div class="ficha-tab ${fichaTab==='agenda'?'active':''}" onclick="fichaTab='agenda';drawFicha(DB.patients.find(x=>x.id==='${p.id}'))">Histórico de Sessões</div>
+      <div class="ficha-tab ${fichaTab==='evolucao'?'active':''}" onclick="fichaTab='evolucao';drawFicha(DB.patients.find(x=>x.id==='${p.id}'))">Evoluções Clínicas</div>
+    </div>
+    ${tabContent}
+  `;
+}
+
+function openRecordModal(patientId) {
+  const p = DB.patients.find(x=>x.id===patientId);
+  const appts = DB.appointments.filter(a=>a.patientId===patientId&&a.status==='confirmado');
+  const aOpts = appts.map(a=>`<option value="${a.id}">[${fmtDate(a.date)}] ${a.type} - Sess. ${a.sessionNum}</option>`).join('');
+  openModal('Nova Evolução Clínica', `
+    <div class="form-row">
+      <div class="form-group"><label>Data da Sessão</label><input type="date" class="form-control" id="r_date" value="${todayStr()}"></div>
+      <div class="form-group"><label>Nº da Sessão</label><input type="number" class="form-control" id="r_sess" min="1" value="1"></div>
+    </div>
+    <div class="form-group"><label>Agendamento Relacionado</label><select class="form-control" id="r_appt"><option value="">Nenhum</option>${aOpts}</select></div>
+    <div class="form-group"><label>Queixas do Paciente</label><textarea class="form-control" id="r_comp" rows="2" placeholder="Descreva as queixas..."></textarea></div>
+    <div class="form-group"><label>Evolução / Avaliação</label><textarea class="form-control" id="r_evol" rows="2" placeholder="Como o paciente evoluiu..."></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Técnicas Utilizadas</label><input class="form-control" id="r_tech" placeholder="Ex: TENS, Ultrassom, RPG..."></div>
+      <div class="form-group"><label>Exercícios Prescritos</label><input class="form-control" id="r_exer" placeholder="Ex: Agachamento, Prancha..."></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Plano para Próxima Sessão</label><input class="form-control" id="r_next" placeholder="Observações para próxima sessão..."></div>
+      <div class="form-group"><label>Profissional Responsável</label><input class="form-control" id="r_prof" placeholder="Nome do fisioterapeuta"></div>
+    </div>
+  `, `<button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveRecord('${patientId}')">Salvar Evolução</button>`, true);
+}
+
+function saveRecord(patientId) {
+  const records = DB.records;
+  records.push({
+    id:uid(), patientId,
+    appointmentId:document.getElementById('r_appt').value,
+    date:document.getElementById('r_date').value,
+    sessionNum:+document.getElementById('r_sess').value,
+    complaints:document.getElementById('r_comp').value,
+    evolution:document.getElementById('r_evol').value,
+    techniques:document.getElementById('r_tech').value,
+    exercises:document.getElementById('r_exer').value,
+    nextSession:document.getElementById('r_next').value,
+    professional:document.getElementById('r_prof').value,
+  });
+  DB.saveRecords(records);
+  closeModal();
+  toast('Evolução registrada!');
+  const p = DB.patients.find(x=>x.id===patientId);
+  fichaTab = 'evolucao';
+  drawFicha(p);
+}
+
+function deleteRecord(id) {
+  if (!confirm('Excluir esta evolução?')) return;
+  DB.saveRecords(DB.records.filter(r=>r.id!==id));
+  toast('Evolução excluída');
+  const p = DB.patients.find(x=>x.id===currentPatientId);
+  if (p) drawFicha(p);
+}
+
+// ═══════════════════════════════════════════
+// HORÁRIOS LIVRES
+// ═══════════════════════════════════════════
+function renderHorarios() {
+  document.getElementById('topbarActions').innerHTML = '';
+  const today = todayStr();
+  const nextWeek = new Date(); nextWeek.setDate(nextWeek.getDate()+7);
+  const nextWeekStr = nextWeek.toISOString().slice(0,10);
+
+  document.getElementById('content').innerHTML = `
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-body">
+        <div class="form-title">Buscar Horários Disponíveis</div>
+        <div class="form-row-3">
+          <div class="form-group"><label>Data Inicial</label><input type="date" class="form-control" id="hs_from" value="${today}"></div>
+          <div class="form-group"><label>Data Final</label><input type="date" class="form-control" id="hs_to" value="${nextWeekStr}"></div>
+          <div class="form-group"><label>Duração (min)</label>
+            <select class="form-control" id="hs_dur"><option>30</option><option selected>50</option><option>60</option><option>90</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Horário de Início</label><input type="time" class="form-control" id="hs_start" value="08:00"></div>
+          <div class="form-group"><label>Horário de Fim</label><input type="time" class="form-control" id="hs_end" value="18:00"></div>
+        </div>
+        <button class="btn btn-primary" onclick="searchFreeSlots()">🔍 Buscar Horários Livres</button>
+      </div>
+    </div>
+    <div id="slotsResult"></div>
+  `;
+}
+
+function searchFreeSlots() {
+  const from = document.getElementById('hs_from').value;
+  const to = document.getElementById('hs_to').value;
+  const dur = +document.getElementById('hs_dur').value;
+  const start = document.getElementById('hs_start').value;
+  const end = document.getElementById('hs_end').value;
+  if (!from || !to) { toast('Preencha as datas', 'error'); return; }
+
+  const appts = DB.appointments.filter(a=>a.status!=='cancelado');
+  const results = [];
+
+  let cur = new Date(from + 'T00:00:00');
+  const last = new Date(to + 'T00:00:00');
+
+  while (cur <= last) {
+    const dow = cur.getDay();
+    if (dow !== 0 && dow !== 6) { // Skip Sunday and Saturday
+      const dateStr = cur.toISOString().slice(0,10);
+      const dayAppts = appts.filter(a=>a.date===dateStr);
+      const busySlots = new Set(dayAppts.map(a=>a.time));
+
+      TIMES.filter(t => t >= start && t <= end).forEach(t => {
+        if (!busySlots.has(t)) {
+          results.push({ date:dateStr, time:t, dow });
+        }
+      });
+    }
+    cur.setDate(cur.getDate()+1);
+  }
+
+  const container = document.getElementById('slotsResult');
+  if (results.length === 0) {
+    container.innerHTML = '<div class="card"><div class="card-body"><div class="empty"><p>Nenhum horário livre encontrado no período</p></div></div></div>';
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  results.forEach(r => { if (!byDate[r.date]) byDate[r.date] = []; byDate[r.date].push(r.time); });
+
+  container.innerHTML = `
+    <div class="card">
+      <div class="card-header"><span class="card-title">Horários Disponíveis (${results.length} slots)</span></div>
+      <div class="card-body">
+        ${Object.entries(byDate).map(([date, times]) => `
+          <div style="margin-bottom:20px">
+            <div style="font-weight:600;color:var(--primary-dark);margin-bottom:10px;font-size:15px">
+              ${FULL_DAYS[new Date(date+'T12:00').getDay()]}, ${fmtDate(date)}
+            </div>
+            <div class="slot-result">
+              ${times.map(t=>`
+                <div class="free-slot" onclick="openNewApptModal('${date}');setTimeout(()=>{let s=document.getElementById('f_time');if(s){for(let o of s.options)if(o.value==='${t}'){o.selected=true;break}}},100)">
+                  <strong>${t}</strong>
+                  <span>${dur} min</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════
+// RELATÓRIOS
+// ═══════════════════════════════════════════
+let charts = {};
+function destroyCharts() { Object.values(charts).forEach(c=>c.destroy()); charts={}; }
+
+function renderRelatorios() {
+  document.getElementById('topbarActions').innerHTML = '';
+  destroyCharts();
+  const appts = DB.appointments;
+  const today = new Date();
+  const monthStr = today.toISOString().slice(0,7);
+
+  // Stats
+  const total = appts.length;
+  const confirmed = appts.filter(a=>a.status==='confirmado').length;
+  const cancelled = appts.filter(a=>a.status==='cancelado').length;
+  const pending = appts.filter(a=>a.status==='pendente').length;
+
+  // Last 6 months
+  const months6 = [];
+  for (let i=5; i>=0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
+    months6.push({ label:MONTHS[d.getMonth()].slice(0,3)+'/'+String(d.getFullYear()).slice(2), key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` });
+  }
+  const monthlyData = months6.map(m => appts.filter(a=>a.date.startsWith(m.key)&&a.status!=='cancelado').length);
+
+  // By type
+  const byType = {};
+  TYPES.forEach(t => { byType[t] = appts.filter(a=>a.type===t&&a.status!=='cancelado').length });
+
+  // Top patients
+  const topPatients = DB.patients.map(p=>({ name:p.name, count:appts.filter(a=>a.patientId===p.id&&a.status!=='cancelado').length })).sort((a,b)=>b.count-a.count).slice(0,5);
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats-grid" style="margin-bottom:20px">
+      <div class="stat-card"><div class="stat-icon teal">📊</div><div class="stat-info"><label>Total Atendimentos</label><p>${total}</p></div></div>
+      <div class="stat-card"><div class="stat-icon emerald">✓</div><div class="stat-info"><label>Confirmados</label><p>${confirmed}</p></div></div>
+      <div class="stat-card"><div class="stat-icon amber">⏳</div><div class="stat-info"><label>Pendentes</label><p>${pending}</p></div></div>
+      <div class="stat-card"><div class="stat-icon rose">✗</div><div class="stat-info"><label>Cancelados (${total?Math.round(cancelled/total*100):0}%)</label><p>${cancelled}</p></div></div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Atendimentos por Mês</span></div>
+        <div class="card-body"><div class="chart-container"><canvas id="chartMonthly"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Distribuição por Tipo</span></div>
+        <div class="card-body"><div class="chart-container"><canvas id="chartType"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Status dos Atendimentos</span></div>
+        <div class="card-body"><div class="chart-container"><canvas id="chartStatus"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Pacientes com Mais Sessões</span></div>
+        <div class="card-body">
+          ${topPatients.map(tp=>`
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+              <div class="patient-avatar" style="width:32px;height:32px;font-size:12px">${patientInitials(tp.name)}</div>
+              <div style="flex:1;font-size:14px">${tp.name}</div>
+              <div style="font-weight:600;color:var(--primary)">${tp.count} sessões</div>
+              <div style="width:80px;background:var(--border);border-radius:4px;height:6px">
+                <div style="width:${topPatients[0].count?Math.round(tp.count/topPatients[0].count*100):0}%;background:var(--primary);height:100%;border-radius:4px"></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  const colors = ['#0e7490','#06b6d4','#10b981','#f59e0b','#f43f5e','#8b5cf6'];
+  const opts = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:12}, color:'#475569' } } } };
+
+  charts.monthly = new Chart(document.getElementById('chartMonthly'), {
+    type:'bar', data:{ labels:months6.map(m=>m.label), datasets:[{ label:'Atendimentos', data:monthlyData, backgroundColor:'#0e7490cc', borderRadius:6 }] },
+    options:{ ...opts, plugins:{ ...opts.plugins, legend:{display:false} }, scales:{ y:{beginAtZero:true,ticks:{stepSize:1}} } }
+  });
+
+  const typeKeys = Object.keys(byType).filter(k=>byType[k]>0);
+  charts.type = new Chart(document.getElementById('chartType'), {
+    type:'doughnut', data:{ labels:typeKeys, datasets:[{ data:typeKeys.map(k=>byType[k]), backgroundColor:colors }] },
+    options:{ ...opts }
+  });
+
+  charts.status = new Chart(document.getElementById('chartStatus'), {
+    type:'pie', data:{ labels:['Confirmados','Pendentes','Cancelados'], datasets:[{ data:[confirmed,pending,cancelled], backgroundColor:['#10b981','#f59e0b','#f43f5e'] }] },
+    options:{ ...opts }
+  });
+}
+
+// ═══════════════════════════════════════════
+// EXPORTAR EXCEL
+// ═══════════════════════════════════════════
+function renderExportar() {
+  document.getElementById('topbarActions').innerHTML = '';
+  const today = todayStr();
+  const monthStart = today.slice(0,7)+'-01';
+
+  document.getElementById('content').innerHTML = `
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-body">
+          <div class="form-title">📊 Exportar Relatório de Atendimentos</div>
+          <div class="form-row">
+            <div class="form-group"><label>Data Inicial</label><input type="date" class="form-control" id="ex_from" value="${monthStart}"></div>
+            <div class="form-group"><label>Data Final</label><input type="date" class="form-control" id="ex_to" value="${today}"></div>
+          </div>
+          <div class="form-group"><label>Status</label>
+            <select class="form-control" id="ex_status">
+              <option value="">Todos</option>
+              <option value="confirmado">Confirmado</option>
+              <option value="pendente">Pendente</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Tipo de Atendimento</label>
+            <select class="form-control" id="ex_type">
+              <option value="">Todos</option>
+              ${TYPES.map(t=>`<option>${t}</option>`).join('')}
+            </select>
+          </div>
+          <button class="btn btn-success" style="width:100%;justify-content:center;margin-top:8px" onclick="exportAppointments()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Baixar Excel — Atendimentos
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="form-title">👥 Exportar Cadastro de Pacientes</div>
+          <p style="font-size:14px;color:var(--text2);margin-bottom:20px">Exporta todos os pacientes cadastrados com dados pessoais e clínicos.</p>
+          <button class="btn btn-success" style="width:100%;justify-content:center;margin-top:8px" onclick="exportPatients()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Baixar Excel — Pacientes
+          </button>
+
+          <div class="form-title" style="margin-top:24px">📋 Exportar Evoluções Clínicas</div>
+          <p style="font-size:14px;color:var(--text2);margin-bottom:20px">Exporta todos os registros de evolução por sessão.</p>
+          <button class="btn btn-success" style="width:100%;justify-content:center" onclick="exportRecords()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Baixar Excel — Evoluções
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function exportAppointments() {
+  const from = document.getElementById('ex_from').value;
+  const to = document.getElementById('ex_to').value;
+  const status = document.getElementById('ex_status').value;
+  const type = document.getElementById('ex_type').value;
+
+  let data = DB.appointments.filter(a => a.date >= from && a.date <= to);
+  if (status) data = data.filter(a => a.status === status);
+  if (type) data = data.filter(a => a.type === type);
+  data.sort((a,b) => a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
+
+  const rows = data.map(a => ({
+    'Data': fmtDate(a.date),
+    'Hora': a.time,
+    'Paciente': patientName(a.patientId),
+    'Tipo': a.type,
+    'Sessão Nº': a.sessionNum||'',
+    'Duração (min)': a.duration,
+    'Status': a.status,
+    'Observações': a.notes||''
+  }));
+
+  if (!rows.length) { toast('Nenhum dado para exportar', 'error'); return; }
+  xlsxDownload([{ name:'Atendimentos', rows }], 'Atendimentos_FisioAgenda');
+  toast(`${rows.length} registros exportados!`);
+}
+
+function exportPatients() {
+  const rows = DB.patients.map(p => ({
+    'Nome': p.name,
+    'CPF': p.cpf,
+    'Telefone': p.phone,
+    'E-mail': p.email,
+    'Nascimento': fmtDate(p.birthdate),
+    'Idade': fmtAge(p.birthdate),
+    'Gênero': p.gender==='M'?'Masculino':p.gender==='F'?'Feminino':'Outro',
+    'Endereço': p.address,
+    'Diagnóstico': p.diagnosis,
+    'Observações': p.notes,
+    'Cadastro': fmtDate(p.createdAt),
+    'Total Sessões': DB.appointments.filter(a=>a.patientId===p.id).length,
+  }));
+  if (!rows.length) { toast('Nenhum paciente cadastrado', 'error'); return; }
+  xlsxDownload([{ name:'Pacientes', rows }], 'Pacientes_FisioAgenda');
+  toast(`${rows.length} pacientes exportados!`);
+}
+
+function exportRecords() {
+  const rows = DB.records.map(r => {
+    const p = DB.patients.find(x=>x.id===r.patientId);
+    return {
+      'Data': fmtDate(r.date),
+      'Paciente': p?.name||'?',
+      'Sessão Nº': r.sessionNum,
+      'Queixas': r.complaints,
+      'Evolução': r.evolution,
+      'Técnicas': r.techniques,
+      'Exercícios': r.exercises,
+      'Plano': r.nextSession,
+      'Profissional': r.professional,
+    };
+  }).sort((a,b)=>a['Data'].localeCompare(b['Data']));
+  if (!rows.length) { toast('Nenhuma evolução registrada', 'error'); return; }
+  xlsxDownload([{ name:'Evoluções', rows }], 'Evolucoes_FisioAgenda');
+  toast(`${rows.length} registros exportados!`);
+}
+
+function xlsxDownload(sheets, filename) {
+  const wb = XLSX.utils.book_new();
+  sheets.forEach(s => {
+    const ws = XLSX.utils.json_to_sheet(s.rows);
+    // Style header row width
+    const cols = Object.keys(s.rows[0]||{});
+    ws['!cols'] = cols.map(() => ({ wch: 20 }));
+    XLSX.utils.book_append_sheet(wb, ws, s.name);
+  });
+  XLSX.writeFile(wb, filename + '_' + todayStr() + '.xlsx');
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+// Register SW
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+navigate('dashboard');
+</script>
+</body>
+</html>
