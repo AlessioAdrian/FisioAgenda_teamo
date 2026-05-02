@@ -315,7 +315,7 @@ tr:hover td{background:var(--bg)}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
   .grid-2{grid-template-columns:1fr}
 }
-@media(max-width:600px){
+@media(max-width:768px){
   .sidebar{position:fixed;z-index:50;height:100%;transform:translateX(-100%);transition:transform .25s}
   .sidebar.open{transform:translateX(0)}
   .stats-grid{grid-template-columns:1fr 1fr}
@@ -395,6 +395,9 @@ tr:hover td{background:var(--bg)}
     <div class="modal-footer" id="modalFooter"></div>
   </div>
 </div>
+
+<!-- MOBILE SIDEBAR OVERLAY -->
+<div id="sidebarOverlay" onclick="closeSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:49;backdrop-filter:blur(1px)"></div>
 
 <!-- TOAST -->
 <div class="toast-wrap" id="toastWrap"></div>
@@ -530,14 +533,32 @@ function navigate(page, data=null) {
 }
 
 document.querySelectorAll('.nav-item').forEach(el => {
-  el.addEventListener('click', () => navigate(el.dataset.page));
+  el.addEventListener('click', () => {
+    navigate(el.dataset.page);
+    if (isMobile()) closeSidebar();
+  });
 });
 
 // Mobile menu
 const menuBtn = document.getElementById('menuToggle');
-menuBtn.addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
-if (window.innerWidth < 600) menuBtn.style.display = 'flex';
-window.addEventListener('resize', () => { menuBtn.style.display = window.innerWidth < 600 ? 'flex' : 'none' });
+function isMobile() { return window.innerWidth < 768; }
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function toggleSidebar() { document.getElementById('sidebar').classList.contains('open') ? closeSidebar() : openSidebar(); }
+menuBtn.addEventListener('click', toggleSidebar);
+if (isMobile()) menuBtn.style.display = 'flex';
+window.addEventListener('resize', () => {
+  menuBtn.style.display = isMobile() ? 'flex' : 'none';
+  if (!isMobile()) closeSidebar();
+});
 
 // ═══════════════════════════════════════════
 // DASHBOARD
